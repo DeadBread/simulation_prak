@@ -4,18 +4,24 @@ from metro import graphs
 from PyQt5 import QtCore
 
 class Train(object):
-    def __init__(self, env, scene, number, station, direction):
+    def __init__(self, env, canvas, number, station, direction):
         self.env = env
         self.number = number
         self.next_station = station
         self.direction = direction
 
+        self.canvas = canvas
+
         self.above = 55
 
-        self.gr = graphs.GraphTrain(100, 300 + self.above)
-        self.gr.setAcceptHoverEvents(True)
-        self.gr.setAcceptDrops(True)
-        scene.addItem(self.gr)
+        self.graph_id = graphs.TrainBuilder.build(self.canvas, station.next[self.rev_direction()], direction)
+
+
+    def rev_direction(self):
+        if self.direction == 'r':
+            return 'l'
+        else:
+            return 'r'
 
 
     def drive(self, durs):
@@ -24,33 +30,29 @@ class Train(object):
             wait_dur = durs[1]
             yield self.env.timeout(go_dur)
             print("train {}, arrived to the station {} at {} so {} {}".format(self.number, self.next_station.name, self.env.now, go_dur, wait_dur))
-            print("current pos", self.gr.pos())
             yield self.env.process(self.next_station.accept(self, wait_dur))
             print("train {} waited for {} departing at {} to {}".format(self.number, wait_dur, self.env.now, self.next_station.next[self.direction].name))
             self.next_station = self.next_station.next[self.direction]
 
     def move(self, dist):
-        print("\n\n", self.gr.pos())
         if self.direction == 'r':
-            # self.gr.setPos(self.gr.pos() + QtCore.QPointF(dist, 1))
-            self.gr.moveBy(dist, 0.)
+            dx = dist
         else:
-            self.gr.moveBy(- dist, 0.)
-        print(self.gr.pos(), "\n\n")
+            dx = - dist
+        self.canvas.move(self.graph_id, dx, 0)
 
     def jump(self):
         if self.direction == 'r':
             self.direction = 'l'
-            self.gr.moveBy(0., -50 - 2 * 30)
+            dy = -50 - 2 * 30 - 20
         else:
             self.direction = 'r'
-            self.gr.moveBy(0., 50 + 2 * 30)
-
-        print("changed direction! next is ", self.next_station.next[self.direction].name)
+            dy = 50 + 2 * 30 + 20
+        self.canvas.move(self.graph_id, 0, dy)
 
 
 class Station(object):
-    def __init__(self, env, scene, n_stations, name, number):
+    def __init__(self, env, canvas, n_stations, name, number):
         self.env = env
         self.resource = {'r': Resource(env, 1), 'l':Resource(env, 1)}
         self.timer = {'r': 0, 'l': 0}
@@ -61,10 +63,8 @@ class Station(object):
         self.shift = 100 + self.dist * number
         self.next = dict()
 
-        self.gr = graphs.GraphStation(self.shift, 300)
-        self.gr.setAcceptHoverEvents(True)
-        self.gr.setAcceptDrops(True)
-        scene.addItem(self.gr)
+        self.canvas = canvas
+        self.gr = graphs.StationBuilder.build(self.canvas, self.shift)
 
     def accept(self, train, duration):
 
@@ -98,22 +98,24 @@ class TerminalStation(Station):
 
 
 class Branch(object):
-    def __init__(self, env, scene, s_num, t_num):
+    def __init__(self, env, canvas, s_num, t_num):
 
         self.go_dur = 5
         self.wait_dur = 1
         self.interval = 3
 
         self.env = env
-        self.scene = scene
+        self.canvas = canvas
 
         self.trains = []
-        self.stations = [TerminalStation(self.env, scene, s_num, "Саларьево", 0)]
+        self.stations = [TerminalStation(self.env, canvas, s_num, "Саларьево", 0)]
 
         for i in range(s_num - 2):
-            self.stations.append(Station(self.env, scene, s_num, str(i+1), i+1))
+            self.stations.append(Station(self.env, canvas, s_num, str(i + 1), i + 1))
 
-        self.stations.append(TerminalStation(self.env, scene, s_num, "Rhz", 0))
+        self.stations.append(TerminalStation(self.env, canvas, s_num, "Rhz", s_num - 1))
+
+        print(len(self.stations))
 
         for i in range(s_num-1):
             self.stations[i].next['r'] = self.stations[i+1]
@@ -121,20 +123,8 @@ class Branch(object):
         for i in range(1, s_num):
             self.stations[i].next['l'] = self.stations[i-1]
 
-        # print(self.stations[s_num-1].next['l'].name)
-
-        #     self.stations[i].next['r'] = self.stations[i+1]
-        #     self.stations[i].next['l'] = self.stations[i-1]
-        # self.stations[0].next['r'] = self.stations[1]
-        # self.stations.append(TerminalStation(self.env,scene, s_num, "Бульвар Рокосовского", s_num-1))
-        # self.stations[s_num-2].next['r'] = self.stations[s_num-1]
-        # self.stations[s_num - 1].next['l'] = self.stations[s_num-2]
-        # self.stations[s_num-1].next['r'] = self.stations[0]
-
-        self.gr_branch = graphs.GraphBranch(scene, self.stations)
-
         for i in range(t_num):
-            self.trains.append(Train(self.env, scene, i, self.stations[1], 'r'))
+            self.trains.append(Train(self.env, canvas, i, self.stations[1], 'r'))
 
     def go(self):
         for station in self.stations:

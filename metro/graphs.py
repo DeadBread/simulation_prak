@@ -1,5 +1,7 @@
 from tkinter import *
 
+from functools import partial
+
 
 
 
@@ -49,8 +51,64 @@ from tkinter import *
 #         pass
 #
 #
+
+
+class StationBuilder(object):
+
+    station_radius = 50
+    station_height = 300
+
+    color = '#fa7aa8'
+
+    @staticmethod
+    def build(canvas, shift):
+        x0 = shift
+        y0 = 300
+        x1 = x0 + StationBuilder.station_radius
+        y1 = y0 + StationBuilder.station_radius
+
+        # canvas.bind("<Button-1>", partial(TrainBuilder.click, canvas))
+
+        return canvas.create_oval(x0,y0 ,x1 ,y1, fill=StationBuilder.color)
+
+
+class TrainBuilder(object):
+
+    station_radius = 50
+    above  = 30
+    station_height = 300
+
+    length = 50
+    height = 20
+    color = '#83f3a2'
+
+    # @staticmethod
+    # def click(canvas, event):
+    #     if canvas.find_withtag(CURRENT):
+    #         canvas.itemconfig(CURRENT, fill="blue")
+    #         canvas.update_idletasks()
+    #         canvas.after(200)
+    #         canvas.itemconfig(CURRENT, fill="red")
+
+    @staticmethod
+    def build(canvas, station, direction):
+        x0 = station.shift
+        if (direction == 'r'):
+            y0 = TrainBuilder.station_height + TrainBuilder.station_radius + TrainBuilder.above
+        else:
+            y0 = TrainBuilder.station_height - TrainBuilder.station_radius - TrainBuilder.above - TrainBuilder.height
+
+        x1 = x0 + TrainBuilder.length
+        y1 = y0 + TrainBuilder.height
+
+        # canvas.bind("<Button-1>", partial(TrainBuilder.click, canvas))
+
+        return canvas.create_oval(x0,y0 ,x1 ,y1, fill=TrainBuilder.color)
+
+
+#
 # class GraphBranch:
-#     def __init__(self, scene, stations):
+#     def __init__(self, canvas, stations):
 #         self.train_picts = dict()
 #         self.station_picts = dict()
 #

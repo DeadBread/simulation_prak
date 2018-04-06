@@ -3,6 +3,7 @@ import simpy as sp
 from metro import graphs, station
 from PyQt5.QtWidgets import *
 from PyQt5 import QtGui, QtCore
+from tkinter import *
 
 
 
@@ -21,70 +22,48 @@ class SimulateTread(QtCore.QThread):
 
 
 
-# if __name__ == '__main__':
-#
-#     app = QApplication(sys.argv)
-#
-#     scene = QGraphicsScene()
-#
-#     # w = QWidget()
-#     # w.resize(250, 150)
-#     # w.move(300, 300)
-#     # w.setWindowTitle('Simple')
-#     # t = graphs.GraphTrain()
-#     # t.setAcceptHoverEvents(True)
-#     # t.setAcceptDrops(True)
-#     #
-#     # ts = graphs.GraphStation()
-#     # ts.setAcceptHoverEvents(True)
-#     # ts.setAcceptDrops(True)
-#
-#     env = sp.RealtimeEnvironment(0, 0.1)
-#
-#     branch = station.Branch(env, scene, 10, 1)
-#     new = graphs.GraphBranch(scene, branch.stations)
-#
-#     # w.
-#     # w.show()
-#
-#     view = QGraphicsView(scene)
-#     view.setRenderHint(QtGui.QPainter.Antialiasing)
-#     view.resize(200, 100)
-#
-#     env.process(branch.go())
-#     t = SimulateTread(env)
-#     t.start()
-#
-#     view.show()
-#
-#     app.exec_()
-#
-#     print("here")
-#     # env.run()
-#
-#     sys.exit(0)
+if __name__ == '__main__':
+    root = Tk()
+
+    canvas = Canvas(root, width=1200, height=500)
+    canvas.pack()
+
+    env = sp.RealtimeEnvironment(0, 0.1)
+
+    branch = station.Branch(env, canvas, 10, 1)
+
+    # w.
+    # w.show()
 
 
-from tkinter import *
-from random import randint
+    env.process(branch.go())
+    t = SimulateTread(env)
+    t.start()
 
-root = Tk()
+    root.mainloop()
 
-canvas = Canvas(root, width=1200, height=500)
-canvas.pack()
+    # print("here")
+    # env.run()
 
-def click(event):
-    if canvas.find_withtag(CURRENT):
-        canvas.itemconfig(CURRENT, fill="blue")
-        canvas.update_idletasks()
-        canvas.after(200)
-        canvas.itemconfig(CURRENT, fill="red")
+    sys.exit(0)
 
-for i in range(100):
-    x, y = randint(0, 1000-1), randint(0, 500-1)
-    canvas.create_oval(x-5, y-5, x+5, y+5, fill="red")
 
-canvas.bind("<Button-1>", click)
-
-root.mainloop()
-
+# from tkinter import *
+# from random import randint
+#
+# root = Tk()
+#
+# canvas = Canvas(root, width=1200, height=500)
+# canvas.pack()
+#
+#
+#
+# # int = graphs.TrainBuilder.build(canvas, station.Station(0, 0, 10, 'name', 7), 'r')
+# # print(int)
+#
+# # for i in range(100):
+# #     x, y = randint(0, 1000-1), randint(0, 500-1)
+# #     canvas.create_oval(x-5, y-5, x+5, y+5, fill="red")
+#
+# root.mainloop()
+#
