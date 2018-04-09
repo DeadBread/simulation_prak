@@ -15,9 +15,13 @@ class Train(object):
 
         self.delay = 0
 
+        self.next_train = None
+        self.on_station = False
+        self.leaving_at = 0
+
         # self.above = 55
 
-        self.graph_id = graphs.TrainBuilder.build(self.canvas, station.next[self.rev_direction()], direction)
+        self.graph_id = graphs.TrainBuilder.build(self.canvas, station.next[self.rev_direction()], direction, number)
 
 
     def rev_direction(self):
@@ -56,8 +60,47 @@ class Train(object):
 
             # yield self.env.timeout(go_dur)
             yield self.env.process(self.move(go_dur, self.next_station.dist))
-            yield self.env.process(self.next_station.accept(self, wait_dur + self.delay))
+
+            yield self.env.process(self.wait_on_station(wait_dur, schedule.go_interval))
+
             self.next_station = self.next_station.next[self.direction]
+
+    def wait_on_station(self, wait_dur, go_dur):
+
+        self.on_station = True
+        self.leaving_at = self.env.now + wait_dur + self.delay
+
+        req = self.next_station.resource[self.direction].request()
+
+        print("train ", self.number, "arrived at", self.env.now, " to", self.next_station.number, "dir", self.direction)
+
+
+        yield self.env.timeout(wait_dur)
+        # yield self.env.process(self.next_station.accept(self, wait_dur + self.delay))
+
+        extra_wait = 0
+        if (self.next_train.next_station == self.next_station.next[self.direction]
+                    or self.next_train.next_station == self.next_station and self.next_station.is_terminal)\
+                and self.next_train.on_station\
+                and self.direction == self.next_train.direction:
+            extra_wait = self.next_train.leaving_at - self.env.now - go_dur / 1.5 + 1
+            if extra_wait < 0:
+                extra_wait = 0
+        elif self.next_train.next_station == self.next_station.next[self.direction]:
+            extra_wait = go_dur
+            # print("self.next_train.leaving_at, self.env.now, extra_wait = ", extra_wait, self.next_train.leaving_at, self.env.now)
+
+        yield self.env.timeout(extra_wait)
+
+        if self.next_station.is_terminal:
+            self.turn_around()
+
+        self.on_station = False
+        self.leaving_at = 0
+
+        print("train ", self.number, "free at", self.env.now, "dir", self.direction)
+
+        self.next_station.resource[self.direction].release(req)
 
     def move(self, go_dur, dist):
         if self.direction == 'r':
@@ -99,7 +142,9 @@ class Station(object):
 
         self.dist = 1000 / n_stations
         self.shift = 100 + self.dist * number
-        self.next = dict()
+        self.next = {'l':None, 'r':None}
+
+        self.is_terminal = False
 
         self.canvas = canvas
         self.graph_id = graphs.StationBuilder.build(self.canvas, self.shift)
@@ -110,16 +155,10 @@ class Station(object):
         # set timer to zero as the train arrives
         self.timer[direction] = 0
 
-        # print("train {} arrived at the station {} at {} ".format(train.number, self.number, self.env.now))
+        print("train ", train.number, "req at", self.env.now, "dir", direction)
         with self.resource[direction].request():
             yield self.env.timeout(duration)
-        # print("train {} leaved the station {} at {}".format(train.number, self.number, self.env.now))
-
-    def request(self, dir):
-        self.resource[dir].request()
-
-    def release(self, dir):
-        self.resource[dir].release()
+        print("train ", train.number, "free at", self.env.now, "dir", direction)
 
     def run(self):
         while True:
@@ -132,18 +171,16 @@ class Station(object):
 
 class TerminalStation(Station):
     # only difference with ordinary station is that it turns the train around
+    def __init__(self, env, canvas, n_stations, name, number):
+        super(TerminalStation, self).__init__(env, canvas, n_stations, name, number)
+        self.is_terminal = True
     def accept(self, train, duration):
         res = super(TerminalStation, self).accept(train, duration)
         yield self.env.process(res)
-        train.turn_around()
 
 
 class Branch(object):
     def __init__(self, env, canvas, s_num, t_num):
-
-        # self.go_dur = 5
-        # self.wait_dur = 1
-        # self.interval = 3
 
         self.schedule = schedule.Schedule(env, s_num, t_num)
 
@@ -168,6 +205,10 @@ class Branch(object):
 
         for i in range(t_num):
             self.trains.append(Train(self.env, canvas, i, self.stations[1], 'r'))
+
+        for i in range(t_num - 1):
+            self.trains[i].next_train = self.trains[i+1]
+        self.trains[-1].next_train = self.trains[0]
 
     def go(self):
         for station in self.stations:

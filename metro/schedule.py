@@ -18,9 +18,9 @@ class Schedule(object):
     # ends at 21:00
     peak_hour_two_end = 15 * 60
 
-    standard_delay_probability = 0.1
-    peak_delay_probability = 0.3
-    max_delay_time = 8
+    standard_delay_probability = 0.3
+    peak_delay_probability = 0.5
+    max_delay_time = 20
 
 
 

@@ -29,7 +29,8 @@ if __name__ == '__main__':
 
     env = sp.RealtimeEnvironment(0, 0.1)
 
-    branch = entity.Branch(env, canvas, 10, 5)
+    # env = sp.Environment()
+    branch = entity.Branch(env, canvas, 12, 10)
 
     env.process(branch.go())
     t = SimulateTread(env)
