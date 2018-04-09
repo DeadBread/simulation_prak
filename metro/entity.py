@@ -31,7 +31,6 @@ class Train(object):
         while True:
             go_dur = schedule.go_interval
             wait_dur = schedule.wait_interval
-            self.delay += schedule.delay()
 
             # fixing delay:
             if go_dur - self.delay >= (go_dur/1.5):
@@ -53,19 +52,32 @@ class Train(object):
 
             print(go_dur, wait_dur, self.delay)
 
+            self.delay += schedule.delay()
 
-            yield self.env.timeout(go_dur)
-            # print("train {}, arrived to the station {} at {} so {} {}".format(self.number, self.next_station.name, self.env.now, go_dur, wait_dur))
+            # yield self.env.timeout(go_dur)
+            yield self.env.process(self.move(go_dur, self.next_station.dist))
             yield self.env.process(self.next_station.accept(self, wait_dur + self.delay))
-            # print("train {} waited for {} departing at {} to {}".format(self.number, wait_dur, self.env.now, self.next_station.next[self.direction].name))
             self.next_station = self.next_station.next[self.direction]
 
-    def move(self, dist):
+    def move(self, go_dur, dist):
         if self.direction == 'r':
             dx = dist
         else:
             dx = - dist
-        self.canvas.move(self.graph_id, dx, 0)
+
+        part_dx = dx / go_dur
+
+        for i in range(floor(go_dur)):
+            self.canvas.move(self.graph_id, part_dx, 0)
+            yield self.env.timeout(1)
+
+        # дробная часть
+        if (go_dur % 1 > 0):
+            self.canvas.mobe(self.graph_id, part_dx * go_dur % 1, 0)
+            yield self.env.timeout(go_dur % 1)
+
+
+        # self.canvas.move(self.graph_id, dx, 0)
 
     def turn_around(self):
         if self.direction == 'r':
@@ -98,12 +110,16 @@ class Station(object):
         # set timer to zero as the train arrives
         self.timer[direction] = 0
 
-        train.move(self.dist)
-
         # print("train {} arrived at the station {} at {} ".format(train.number, self.number, self.env.now))
         with self.resource[direction].request():
             yield self.env.timeout(duration)
         # print("train {} leaved the station {} at {}".format(train.number, self.number, self.env.now))
+
+    def request(self, dir):
+        self.resource[dir].request()
+
+    def release(self, dir):
+        self.resource[dir].release()
 
     def run(self):
         while True:
