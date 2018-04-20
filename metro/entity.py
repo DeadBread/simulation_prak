@@ -51,22 +51,14 @@ class Train(object):
             elif wait_dur - (self.delay - (go_dur - go_dur/1.5)) >= 1:
                 wait_dur -= (self.delay - (go_dur - go_dur/1.5))
                 go_dur /= 1.5
-                # print("wow!", go_dur, wait_dur, self.delay)
-                print(wait_dur >= 1)
                 self.delay = 0
 
             else:
-                # print(self.delay)
                 self.delay -= (go_dur - go_dur/1.5)
                 self.delay -= wait_dur - 1
                 go_dur /= 1.5
                 wait_dur = 1
 
-            # print(go_dur, wait_dur, self.delay)
-
-            # self.delay += schedule.delay()
-
-            # yield self.env.timeout(go_dur)
             yield self.env.process(self.move(go_dur, self.next_station.dist))
 
             yield self.env.process(self.wait_on_station(wait_dur, schedule.delay(), schedule.go_interval))
@@ -105,16 +97,12 @@ class Train(object):
                 # self.delay += 1
                 yield self.env.timeout(1)
 
-                print ("extra first case", self.number, extra_wait)
+                # print ("extra first case", self.number, extra_wait)
             while self.next_train.driving and (self.next_train.next_station == self.next_station \
                     or self.next_train.next_station == self.next_station.next[self.direction]):
-                print(self.number, self.next_train.number)
 
-                # self.delay += 1
                 yield self.env.timeout(1)
-                print("extra second case", self.number, extra_wait)
-
-            print(self.number, self.next_train.number)
+                # print("extra second case", self.number, extra_wait)
 
             # print("self.next_train.leaving_at, self.env.now, extra_wait = ", extra_wait, self.next_train.leaving_at, self.env.now)
 
@@ -124,12 +112,14 @@ class Train(object):
                 self.turn_around()
                 self.leaving_at = wait_dur
                 yield self.env.timeout(wait_dur)
-                wait_dur *= 2
+                print("wait dur = ", wait_dur)
+                self.next_station.register_train(wait_dur, self.delay, self.direction)
+                # wait_dur *= 2
 
             self.on_station = False
             self.leaving_at = 0
 
-            print("train ", self.number, "free at", self.env.now, "of", self.next_station.number,  "dir", self.direction)
+            # print("train ", self.number, "free at", self.env.now, "of", self.next_station.number,  "dir", self.direction)
 
 
         self.next_station = self.next_station.next[self.direction]
@@ -262,8 +252,6 @@ class Branch(object):
             self.stations.append(Station(self.env, canvas, s_num, str(i + 1), i + 1))
 
         self.stations.append(TerminalStation(self.env, canvas, s_num, "x", s_num - 1))
-
-        print(len(self.stations))
 
         for i in range(s_num-1):
             self.stations[i].next['r'] = self.stations[i+1]
